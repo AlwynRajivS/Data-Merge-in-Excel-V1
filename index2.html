@@ -1,0 +1,275 @@
+﻿<!DOCTYPE html>
+<html lang="ta">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Excel Merger – No Template</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+body{background:#0b1025;color:#fff;font-family:Inter,system-ui;padding:20px}
+.card{background:rgba(255,255,255,0.06);padding:16px;border-radius:12px;margin-bottom:16px}
+.btn{padding:10px 16px;border-radius:8px;border:none;font-weight:600;cursor:pointer;
+background:linear-gradient(90deg,#6ee7b7,#7c3aed);color:#000}
+.btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.3);color:#ddd}
+.file-chip{display:inline-block;padding:6px 10px;border-radius:10px;margin:4px}
+.tiles{display:flex;flex-wrap:wrap;gap:10px}
+.tile{width:190px;padding:10px;border-radius:10px;cursor:pointer;border:2px solid transparent}
+.tile.selected{outline:2px solid #fff}
+.mapping-row{display:flex;gap:10px;margin-bottom:8px;align-items:center}
+input,select{padding:8px;border-radius:6px;border:1px solid rgba(255,255,255,0.3);
+background:#0b1025;color:#fff}
+.preview{max-height:400px;overflow:auto}
+table{width:100%;border-collapse:collapse}
+th,td{padding:8px;border-bottom:1px solid rgba(255,255,255,0.15)}
+th{position:sticky;top:0;background:#111}
+
+.missing{
+  background:linear-gradient(135deg,#3b0a0a,#7f1d1d);
+  color:#fde68a;
+  border:1px dashed #f59e0b;
+}
+.zeroVal{
+  background:linear-gradient(135deg,#0f3a2e,#14532d);
+  color:#bbf7d0;
+  border:1px dashed #22c55e;
+}
+
+.legend{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;font-size:13px}
+.legend span{display:flex;align-items:center;gap:6px}
+.legend-box{width:16px;height:16px;border-radius:4px}
+
+.dupwarn{color:#facc15;font-size:12px}
+.small{opacity:0.7;font-size:13px}
+.search{margin-bottom:10px}
+
+@media print{
+  body{background:#fff;color:#000}
+  .card,.btn,.search{display:none}
+  table{font-size:12px}
+}
+</style>
+</head>
+
+<body>
+
+<h2>📊 Excel Merger (No Template)</h2>
+<div class="small">
+✔ Reference-based merge | ✔ Missing & Zero highlight | ✔ Print-ready
+</div>
+
+<div class="card">
+  <button class="btn" id="addFileBtn">📁 Add File</button>
+  <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" hidden>
+  <button class="btn" id="mergeBtn">🔀 Merge</button>
+  <button class="btn ghost" id="clearBtn">🧹 Clear</button>
+</div>
+
+<div class="card">
+  <h3>📂 Files & Reference Column</h3>
+  <div id="fileList"></div>
+</div>
+
+<div class="card">
+  <h3>🧩 Header Selection</h3>
+  <input class="search" id="searchBox" placeholder="🔍 Search header">
+  <div id="tiles" class="tiles"></div>
+</div>
+
+<div class="card">
+  <h3>🔗 Rename Output Headers</h3>
+  <div id="mapping"></div>
+</div>
+
+<div class="card" id="previewCard" style="display:none">
+  <h3>👀 Preview</h3>
+
+  <div class="legend">
+    <span><i class="legend-box missing"></i> Missing</span>
+    <span><i class="legend-box zeroVal"></i> Zero (Valid)</span>
+    <span><i class="legend-box" style="background:#16a34a"></i> OK</span>
+  </div>
+
+  <button class="btn" id="downloadBtn">⬇️ Download XLSX</button>
+  <button class="btn ghost" onclick="window.print()">🖨️ Print</button>
+
+  <div class="preview" id="preview"></div>
+</div>
+
+<script>
+let files=[], headers={}, headerIds=[], selected=new Set(), merged=[];
+const COLORS=["#22c55e","#38bdf8","#eab308","#f97316","#ec4899","#a78bfa"];
+
+const addFileBtn=document.getElementById('addFileBtn');
+const fileInput=document.getElementById('fileInput');
+const mergeBtn=document.getElementById('mergeBtn');
+const clearBtn=document.getElementById('clearBtn');
+const fileList=document.getElementById('fileList');
+const tilesDiv=document.getElementById('tiles');
+const mappingDiv=document.getElementById('mapping');
+const previewCard=document.getElementById('previewCard');
+const previewDiv=document.getElementById('preview');
+const downloadBtn=document.getElementById('downloadBtn');
+const searchBox=document.getElementById('searchBox');
+
+const norm=s=>(s??'').toString().trim();
+const uid=()=>Math.random().toString(36).slice(2,9);
+
+addFileBtn.onclick=()=>fileInput.click();
+
+fileInput.onchange=async()=>{
+  const f=fileInput.files[0]; if(!f) return;
+  const buf=await f.arrayBuffer();
+  const wb=XLSX.read(buf,{type:'array'});
+  const sh=wb.Sheets[wb.SheetNames[0]];
+  const json=XLSX.utils.sheet_to_json(sh,{header:1,defval:''});
+
+  const headersRow=json[0].map(norm);
+  const rows=json.slice(1);
+  const file={
+    id:uid(), name:f.name, color:COLORS[files.length%COLORS.length],
+    headers:headersRow, rows, refCol:0, refMap:new Map(), dupRefs:new Set()
+  };
+
+  buildRefMap(file);
+  files.push(file);
+  refresh();
+};
+
+function buildRefMap(file){
+  file.refMap.clear(); file.dupRefs.clear();
+  file.rows.forEach(r=>{
+    const ref=norm(r[file.refCol]);
+    if(!ref) return;
+    if(file.refMap.has(ref)) file.dupRefs.add(ref);
+    else file.refMap.set(ref,r);
+  });
+}
+
+function refresh(){
+  fileList.innerHTML=''; headers={}; headerIds=[]; selected.clear();
+
+  files.forEach(f=>{
+    const box=document.createElement('div');
+    box.className='file-chip';
+    box.style.background=f.color; box.style.color='#000';
+    box.innerHTML=`${f.name}<br><small>Reference:</small>`;
+
+    const sel=document.createElement('select');
+    f.headers.forEach((h,i)=>sel.innerHTML+=`<option value="${i}">${h}</option>`);
+    sel.value=f.refCol;
+    sel.onchange=()=>{f.refCol=+sel.value; buildRefMap(f); refresh();};
+    box.appendChild(sel);
+
+    if(f.dupRefs.size){
+      const w=document.createElement('div');
+      w.className='dupwarn';
+      w.textContent='⚠ Duplicate Reg No: '+[...f.dupRefs].join(', ');
+      box.appendChild(w);
+    }
+
+    fileList.appendChild(box);
+
+    f.headers.forEach((h,i)=>{
+      const hid=f.id+'::'+i;
+      headers[hid]={file:f,header:h,col:i};
+      headerIds.push(hid);
+    });
+  });
+
+  buildTiles(); buildMapping();
+}
+
+function buildTiles(){
+  tilesDiv.innerHTML='';
+  const q=searchBox.value.toLowerCase();
+  headerIds.forEach(hid=>{
+    const m=headers[hid];
+    if(q && !m.header.toLowerCase().includes(q)) return;
+    const t=document.createElement('div');
+    t.className='tile';
+    t.style.background=m.file.color+'33';
+    t.style.borderColor=m.file.color;
+    t.textContent=`${m.header} (${m.file.name})`;
+    t.onclick=()=>{
+      t.classList.toggle('selected');
+      t.classList.contains('selected')?selected.add(hid):selected.delete(hid);
+      buildMapping();
+    };
+    tilesDiv.appendChild(t);
+  });
+}
+searchBox.oninput=buildTiles;
+
+function buildMapping(){
+  mappingDiv.innerHTML='';
+  selected.forEach(hid=>{
+    const m=headers[hid];
+    const r=document.createElement('div');
+    r.className='mapping-row';
+    const inp=document.createElement('input');
+    inp.value=m.header;
+    inp.oninput=()=>m.out=inp.value;
+    r.append('Output',inp);
+    mappingDiv.appendChild(r);
+  });
+}
+
+mergeBtn.onclick=()=>{
+  merged=[]; mergeData(); showPreview();
+};
+
+function mergeData(){
+  const refs=new Set();
+  files.forEach(f=>f.refMap.forEach((_,k)=>refs.add(k)));
+
+  refs.forEach(ref=>{
+    let row={Reference:ref};
+    selected.forEach(hid=>{
+      const m=headers[hid];
+      const d=m.file.refMap.get(ref);
+      row[m.out||m.header]=d?d[m.col]:'';
+    });
+    merged.push(row);
+  });
+}
+
+function showPreview(){
+  previewCard.style.display='block';
+  previewDiv.innerHTML='';
+  let miss=0, zero=0;
+  const cols=Object.keys(merged[0]);
+
+  let html=`<div class="small">🧮 Missing: <b>${miss}</b> | Zero: <b>${zero}</b></div>`;
+  html+=`<table><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr>`;
+
+  merged.forEach(r=>{
+    html+='<tr>'+cols.map(c=>{
+      const v=r[c];
+      let cls='';
+      if(v===''){cls='missing';miss++;}
+      else if(v===0){cls='zeroVal';zero++;}
+      return `<td class="${cls}">${v}</td>`;
+    }).join('')+'</tr>';
+  });
+
+  html+='</table>';
+  previewDiv.innerHTML=html;
+
+  downloadBtn.onclick=()=>{
+    const ws=XLSX.utils.json_to_sheet(merged);
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,'Merged');
+    XLSX.writeFile(wb,'merged.xlsx');
+  };
+}
+
+clearBtn.onclick=()=>{
+  files=[]; headers={}; headerIds=[]; selected.clear(); merged=[];
+  fileList.innerHTML=''; tilesDiv.innerHTML=''; mappingDiv.innerHTML='';
+  previewCard.style.display='none';
+};
+</script>
+
+</body>
+</html>
