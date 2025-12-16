@@ -1,78 +1,194 @@
-﻿<!DOCTYPE html>
-<html lang="ta">
+<!DOCTYPE html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Excel Merger</title>
+<title>Excel Merger – Enhanced UI</title>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <style>
-body{background:#0b1025;color:#fff;font-family:Inter,system-ui;padding:20px}
-.card{background:rgba(255,255,255,0.06);padding:16px;border-radius:12px;margin-bottom:16px}
-.btn{padding:10px 16px;border-radius:8px;border:none;font-weight:600;cursor:pointer;
-background:linear-gradient(90deg,#6ee7b7,#7c3aed);color:#000}
-.btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.3);color:#ddd}
-.file-chip{display:inline-block;padding:6px 10px;border-radius:10px;margin:4px}
-.tiles{display:flex;flex-wrap:wrap;gap:10px}
-.tile{width:190px;padding:10px;border-radius:10px;cursor:pointer;border:2px solid transparent}
-.tile.selected{outline:2px solid #fff}
-.mapping-row{display:flex;gap:10px;margin-bottom:8px;align-items:center}
-input,select{padding:8px;border-radius:6px;border:1px solid rgba(255,255,255,0.3);
-background:#0b1025;color:#fff}
-.preview{max-height:400px;overflow:auto}
-table{width:100%;border-collapse:collapse}
-th,td{padding:8px;border-bottom:1px solid rgba(255,255,255,0.15)}
-th{position:sticky;top:0;background:#111}
+:root{
+  --bg:#0b1025;
+  --card:rgba(255,255,255,0.08);
+  --border:rgba(255,255,255,0.18);
+  --accent:#7c3aed;
+}
+
+*{box-sizing:border-box}
+
+body{
+  background:radial-gradient(circle at top,#141b3a,#0b1025);
+  color:#fff;
+  font-family:Inter,system-ui;
+  padding:20px;
+}
+
+h2{font-size:26px;margin-bottom:4px}
+h3{margin-bottom:10px;color:#e5e7eb}
+.small{opacity:.75;font-size:13px}
+
+.card{
+  background:var(--card);
+  padding:18px;
+  border-radius:16px;
+  margin-bottom:18px;
+  border:1px solid var(--border);
+  backdrop-filter:blur(10px);
+  box-shadow:0 10px 30px rgba(0,0,0,.35);
+}
+
+.btn{
+  padding:10px 18px;
+  border-radius:999px;
+  border:none;
+  font-weight:600;
+  cursor:pointer;
+  background:linear-gradient(90deg,#6ee7b7,#7c3aed);
+  color:#000;
+  transition:.25s;
+}
+.btn:hover{transform:translateY(-1px)}
+.btn.ghost{
+  background:transparent;
+  border:1px solid var(--border);
+  color:#ddd;
+}
+
+.file-chip{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:8px 12px;
+  border-radius:999px;
+  margin:6px;
+  font-size:13px;
+  font-weight:600;
+  box-shadow:0 4px 10px rgba(0,0,0,.25);
+}
+
+.tiles{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+  gap:14px;
+}
+
+.tile{
+  padding:14px;
+  border-radius:14px;
+  cursor:pointer;
+  border:1px solid var(--border);
+  font-size:14px;
+  background:rgba(255,255,255,.05);
+  transition:.25s;
+}
+.tile:hover{
+  transform:translateY(-2px);
+  box-shadow:0 10px 20px rgba(0,0,0,.35);
+}
+.tile.selected{
+  outline:3px solid #fff;
+  box-shadow:0 0 0 3px rgba(124,58,237,.7),
+             0 0 30px rgba(124,58,237,.5);
+}
+
+input,select{
+  padding:9px 12px;
+  border-radius:10px;
+  border:1px solid var(--border);
+  background:#0b1025;
+  color:#fff;
+  font-size:14px;
+}
+
+.mapping-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.preview{
+  max-height:460px;
+  overflow:auto;
+  border-radius:14px;
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:14px;
+}
+.tile-header{
+  font-size:16px;
+  font-weight:700;
+  color:#ffffff;
+  margin-bottom:4px;
+}
+
+.tile-file{
+  font-size:12px;
+  opacity:0.75;
+  color:#e5e7eb;
+}
+
+
+th{
+  position:sticky;
+  top:0;
+  background:linear-gradient(180deg,#111827,#020617);
+  padding:12px;
+  text-align:left;
+}
+
+td{
+  padding:12px;
+  vertical-align:top;
+  word-break:break-word;
+  line-height:1.45;
+}
+
+tr:nth-child(even){background:rgba(255,255,255,.03)}
 
 .missing{
-  background:linear-gradient(135deg,#3b0a0a,#7f1d1d);
+  background:linear-gradient(135deg,#7f1d1d,#3f0d0d);
   color:#fde68a;
-  border:1px dashed #f59e0b;
 }
+
 .zeroVal{
-  background:linear-gradient(135deg,#0f3a2e,#14532d);
+  background:linear-gradient(135deg,#14532d,#052e16);
   color:#bbf7d0;
-  border:1px dashed #22c55e;
 }
 
-.legend{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;font-size:13px}
-.legend span{display:flex;align-items:center;gap:6px}
-.legend-box{width:16px;height:16px;border-radius:4px}
+.search{margin-bottom:12px;width:100%}
 
-.dupwarn{color:#facc15;font-size:12px}
-.small{opacity:0.7;font-size:13px}
-.search{margin-bottom:10px}
-
-@media print{
-  body{background:#fff;color:#000}
-  .card,.btn,.search{display:none}
-  table{font-size:12px}
+@media(max-width:600px){
+  body{padding:12px}
+  h2{font-size:22px}
+  .tiles{grid-template-columns:1fr}
 }
 </style>
 </head>
 
 <body>
 
-<h2>📊 Excel Data Merger</h2>
-<div class="small">
-✔ Reference-based merge | ✔ Missing & Zero highlight
+<h2>📊 Excel Merger</h2>
+<div class="small">✔ Reference merge ✔ Same header update ✔ Professional view</div>
+
+<div class="card">
+  <button class="btn" onclick="fileInput.click()">📁 Add File</button>
+  <input type="file" id="fileInput" hidden accept=".xlsx,.xls,.csv">
+  <button class="btn" onclick="merge()">🔀 Merge</button>
+  <button class="btn ghost" onclick="resetAll()">🧹 Clear</button>
 </div>
 
 <div class="card">
-  <button class="btn" id="addFileBtn">📁 Add File</button>
-  <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" hidden>
-  <button class="btn" id="mergeBtn">🔀 Merge</button>
-  <button class="btn ghost" id="clearBtn">🧹 Clear</button>
-</div>
-
-<div class="card">
-  <h3>📂 Files & Reference Column</h3>
+  <h3>📂 Files</h3>
   <div id="fileList"></div>
 </div>
 
 <div class="card">
-  <h3>🧩 Header Selection</h3>
-  <input class="search" id="searchBox" placeholder="🔍 Search header">
+  <h3>🧩 Select Headers</h3>
+  <input class="search" placeholder="Search header" oninput="renderTiles(this.value)">
   <div id="tiles" class="tiles"></div>
 </div>
 
@@ -83,192 +199,150 @@ th{position:sticky;top:0;background:#111}
 
 <div class="card" id="previewCard" style="display:none">
   <h3>👀 Preview</h3>
-
-  <div class="legend">
-    <span><i class="legend-box missing"></i> Missing</span>
-    <span><i class="legend-box zeroVal"></i> Zero (Valid)</span>
-    <span><i class="legend-box" style="background:#16a34a"></i> OK</span>
-  </div>
-
-  <button class="btn" id="downloadBtn">⬇️ Download XLSX</button>
-  
-
+  <button class="btn" onclick="download()">⬇ Download XLSX</button>
   <div class="preview" id="preview"></div>
 </div>
 
 <script>
-let files=[], headers={}, headerIds=[], selected=new Set(), merged=[];
 const COLORS=["#22c55e","#38bdf8","#eab308","#f97316","#ec4899","#a78bfa"];
-
-const addFileBtn=document.getElementById('addFileBtn');
-const fileInput=document.getElementById('fileInput');
-const mergeBtn=document.getElementById('mergeBtn');
-const clearBtn=document.getElementById('clearBtn');
-const fileList=document.getElementById('fileList');
-const tilesDiv=document.getElementById('tiles');
-const mappingDiv=document.getElementById('mapping');
-const previewCard=document.getElementById('previewCard');
-const previewDiv=document.getElementById('preview');
-const downloadBtn=document.getElementById('downloadBtn');
-const searchBox=document.getElementById('searchBox');
-
-const norm=s=>(s??'').toString().trim();
-const uid=()=>Math.random().toString(36).slice(2,9);
-
-addFileBtn.onclick=()=>fileInput.click();
+let files=[], selected=new Set(), headersMap={}, merged=[];
+const norm=v=>(v??'').toString().trim();
 
 fileInput.onchange=async()=>{
   const f=fileInput.files[0]; if(!f) return;
   const buf=await f.arrayBuffer();
   const wb=XLSX.read(buf,{type:'array'});
   const sh=wb.Sheets[wb.SheetNames[0]];
-  const json=XLSX.utils.sheet_to_json(sh,{header:1,defval:''});
+  const data=XLSX.utils.sheet_to_json(sh,{header:1,defval:''});
 
-  const headersRow=json[0].map(norm);
-  const rows=json.slice(1);
-  const file={
-    id:uid(), name:f.name, color:COLORS[files.length%COLORS.length],
-    headers:headersRow, rows, refCol:0, refMap:new Map(), dupRefs:new Set()
-  };
+  files.push({
+    id:crypto.randomUUID(),
+    name:f.name,
+    color:COLORS[files.length%COLORS.length],
+    headers:data[0],
+    rows:data.slice(1),
+    refCol:0
+  });
 
-  buildRefMap(file);
-  files.push(file);
-  refresh();
+  renderFiles();
+  buildHeaders();
 };
 
-function buildRefMap(file){
-  file.refMap.clear(); file.dupRefs.clear();
-  file.rows.forEach(r=>{
-    const ref=norm(r[file.refCol]);
-    if(!ref) return;
-    if(file.refMap.has(ref)) file.dupRefs.add(ref);
-    else file.refMap.set(ref,r);
+function renderFiles(){
+  fileList.innerHTML='';
+  files.forEach(f=>{
+    const d=document.createElement('div');
+    d.className='file-chip';
+    d.style.background=f.color;
+    d.style.color='#000';
+    d.textContent=f.name+' ';
+    const s=document.createElement('select');
+    f.headers.forEach((h,i)=>s.innerHTML+=`<option value="${i}">${h}</option>`);
+    s.onchange=()=>f.refCol=+s.value;
+    d.appendChild(s);
+    fileList.appendChild(d);
   });
 }
 
-function refresh(){
-  fileList.innerHTML=''; headers={}; headerIds=[]; selected.clear();
-
+function buildHeaders(){
+  headersMap={};
   files.forEach(f=>{
-    const box=document.createElement('div');
-    box.className='file-chip';
-    box.style.background=f.color; box.style.color='#000';
-    box.innerHTML=`${f.name}<br><small>Reference:</small>`;
-
-    const sel=document.createElement('select');
-    f.headers.forEach((h,i)=>sel.innerHTML+=`<option value="${i}">${h}</option>`);
-    sel.value=f.refCol;
-    sel.onchange=()=>{f.refCol=+sel.value; buildRefMap(f); refresh();};
-    box.appendChild(sel);
-
-    if(f.dupRefs.size){
-      const w=document.createElement('div');
-      w.className='dupwarn';
-      w.textContent='⚠ Duplicate Reg No: '+[...f.dupRefs].join(', ');
-      box.appendChild(w);
-    }
-
-    fileList.appendChild(box);
-
     f.headers.forEach((h,i)=>{
-      const hid=f.id+'::'+i;
-      headers[hid]={file:f,header:h,col:i};
-      headerIds.push(hid);
+      headersMap[f.id+'::'+i]={file:f,header:h,col:i};
     });
   });
-
-  buildTiles(); buildMapping();
+  renderTiles();
 }
 
-function buildTiles(){
-  tilesDiv.innerHTML='';
-  const q=searchBox.value.toLowerCase();
-  headerIds.forEach(hid=>{
-    const m=headers[hid];
-    if(q && !m.header.toLowerCase().includes(q)) return;
+function renderTiles(q=''){
+  tiles.innerHTML='';
+  Object.entries(headersMap).forEach(([k,h])=>{
+    if(q && !h.header.toLowerCase().includes(q.toLowerCase())) return;
     const t=document.createElement('div');
-    t.className='tile';
-    t.style.background=m.file.color+'33';
-    t.style.borderColor=m.file.color;
-    t.textContent=`${m.header} (${m.file.name})`;
+    t.className='tile'+(selected.has(k)?' selected':'');
+    t.style.background=h.file.color+'55';
+    t.style.borderColor=h.file.color;
+   t.innerHTML = `
+  <div class="tile-header">${h.header}</div>
+  <div class="tile-file">${h.file.name}</div>
+`;
+
     t.onclick=()=>{
-      t.classList.toggle('selected');
-      t.classList.contains('selected')?selected.add(hid):selected.delete(hid);
-      buildMapping();
+      selected.has(k)?selected.delete(k):selected.add(k);
+      renderTiles(q); renderMapping();
     };
-    tilesDiv.appendChild(t);
+    tiles.appendChild(t);
   });
 }
-searchBox.oninput=buildTiles;
 
-function buildMapping(){
-  mappingDiv.innerHTML='';
-  selected.forEach(hid=>{
-    const m=headers[hid];
+function renderMapping(){
+  mapping.innerHTML='';
+  selected.forEach(k=>{
+    const h=headersMap[k];
     const r=document.createElement('div');
     r.className='mapping-row';
-    const inp=document.createElement('input');
-    inp.value=m.header;
-    inp.oninput=()=>m.out=inp.value;
-    r.append('Output',inp);
-    mappingDiv.appendChild(r);
+    const i=document.createElement('input');
+    i.value=h.out||h.header;
+    i.oninput=()=>h.out=i.value;
+    r.append('Output',i);
+    mapping.appendChild(r);
   });
 }
 
-mergeBtn.onclick=()=>{
-  merged=[]; mergeData(); showPreview();
-};
-
-function mergeData(){
+function merge(){
+  merged=[];
   const refs=new Set();
-  files.forEach(f=>f.refMap.forEach((_,k)=>refs.add(k)));
+  files.forEach(f=>f.rows.forEach(r=>{
+    const ref=norm(r[f.refCol]);
+    if(ref) refs.add(ref);
+  }));
 
   refs.forEach(ref=>{
-    let row={Reference:ref};
-    selected.forEach(hid=>{
-      const m=headers[hid];
-      const d=m.file.refMap.get(ref);
-      row[m.out||m.header]=d?d[m.col]:'';
+    const row={Reference:ref};
+    selected.forEach(k=>{
+      const h=headersMap[k];
+      const header=norm(h.header);
+      let val='';
+      for(const f of files){
+        const ci=f.headers.findIndex(x=>norm(x)===header);
+        if(ci===-1) continue;
+        const fr=f.rows.find(r=>norm(r[f.refCol])===ref);
+        if(fr && fr[ci]!==''){val=fr[ci];break;}
+      }
+      row[h.out||h.header]=val;
     });
     merged.push(row);
   });
+  showPreview();
 }
 
 function showPreview(){
   previewCard.style.display='block';
-  previewDiv.innerHTML='';
-  let miss=0, zero=0;
-  const cols=Object.keys(merged[0]);
-
-  let html=`<div class="small">🧮 Missing: <b>${miss}</b> | Zero: <b>${zero}</b></div>`;
-  html+=`<table><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr>`;
-
+  const cols=Object.keys(merged[0]||{});
+  let h='<table><tr>'+cols.map(c=>`<th>${c}</th>`).join('')+'</tr>';
   merged.forEach(r=>{
-    html+='<tr>'+cols.map(c=>{
-      const v=r[c];
-      let cls='';
-      if(v===''){cls='missing';miss++;}
-      else if(v===0){cls='zeroVal';zero++;}
+    h+='<tr>'+cols.map(c=>{
+      let v=r[c],cls='';
+      if(v==='') cls='missing';
+      else if(v===0) cls='zeroVal';
       return `<td class="${cls}">${v}</td>`;
     }).join('')+'</tr>';
   });
-
-  html+='</table>';
-  previewDiv.innerHTML=html;
-
-  downloadBtn.onclick=()=>{
-    const ws=XLSX.utils.json_to_sheet(merged);
-    const wb=XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb,ws,'Merged');
-    XLSX.writeFile(wb,'merged.xlsx');
-  };
+  preview.innerHTML=h+'</table>';
 }
 
-clearBtn.onclick=()=>{
-  files=[]; headers={}; headerIds=[]; selected.clear(); merged=[];
-  fileList.innerHTML=''; tilesDiv.innerHTML=''; mappingDiv.innerHTML='';
+function download(){
+  const ws=XLSX.utils.json_to_sheet(merged);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Merged');
+  XLSX.writeFile(wb,'merged.xlsx');
+}
+
+function resetAll(){
+  files=[]; selected.clear(); headersMap={}; merged=[];
+  fileList.innerHTML=''; tiles.innerHTML=''; mapping.innerHTML='';
   previewCard.style.display='none';
-};
+}
 </script>
 
 </body>
